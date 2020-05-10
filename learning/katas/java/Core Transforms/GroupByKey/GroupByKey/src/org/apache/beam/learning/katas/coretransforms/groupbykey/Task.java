@@ -30,30 +30,26 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 public class Task {
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipe = Pipeline.create(options);
 
-    PCollection<String> words =
-        pipeline.apply(
-            Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
-        );
-
-    PCollection<KV<String, Iterable<String>>> output = applyTransform(words);
+    PCollection<String> in = pipe.apply(Create.of("Luis", "Loco", "Apple", "Ade", "Kiosko"));
+    PCollection<KV<String, Iterable<String>>> output = applyTransform(in);
 
     output.apply(Log.ofElements());
-
-    pipeline.run();
+    pipe.run();
   }
 
   static PCollection<KV<String, Iterable<String>>> applyTransform(PCollection<String> input) {
-    return input
-        .apply(MapElements.into(kvs(strings(), strings()))
-            .via(word -> KV.of(word.substring(0, 1), word)))
-
+    return input.apply(
+        MapElements.into(kvs(strings(), strings()))
+            .via((String word) -> KV.of(word.substring(0,1), word)))
         .apply(GroupByKey.create());
   }
 

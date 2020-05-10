@@ -26,21 +26,18 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 
 public class Task {
 
   public static void main(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
+      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+      Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<Integer> numbers =
-        pipeline.apply(Create.of(1, 2, 3, 4, 5));
+      PCollection<Integer> in = pipeline.apply(Create.of(1, 2, 3, 4, 5));
+      PCollection<Integer> out = applyTransform(in);
 
-    PCollection<Integer> output = applyTransform(numbers);
-
-    output.apply(Log.ofElements());
-
-    pipeline.run();
+      out.apply(Log.ofElements());
   }
 
   static PCollection<Integer> applyTransform(PCollection<Integer> input) {
