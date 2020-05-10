@@ -32,22 +32,20 @@ public class Task {
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipe = Pipeline.create(options);
+    PCollection<String> input = pipe.apply(Create.of("Apache Beam", "Unified Batch and Streaming"));
 
-    PCollection<String> sentences =
-        pipeline.apply(Create.of("Apache Beam", "Unified Batch and Streaming"));
-
-    PCollection<String> output = applyTransform(sentences);
+    PCollection<String> output = applyTransform(input);
 
     output.apply(Log.ofElements());
+    pipe.run();
 
-    pipeline.run();
   }
 
   static PCollection<String> applyTransform(PCollection<String> input) {
     return input.apply(
         FlatMapElements.into(TypeDescriptors.strings())
-            .via(sentence -> Arrays.asList(sentence.split(" ")))
+        .via((String sentence) -> Arrays.asList(sentence.split(" ")))
     );
   }
 

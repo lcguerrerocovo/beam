@@ -20,6 +20,7 @@ package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.stream.StreamSupport;
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 
 public class Task {
@@ -48,28 +50,17 @@ public class Task {
     return input.apply(Combine.globally(new AverageFn()));
   }
 
-  static class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 
-    class Accum implements Serializable {
+  public static class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
+
+    public static class Accum implements Serializable {
       int sum = 0;
       int count = 0;
 
-      @Override
-      public boolean equals(Object o) {
-        if (this == o) {
-          return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-          return false;
-        }
-        Accum accum = (Accum) o;
-        return sum == accum.sum &&
-            count == accum.count;
-      }
-
-      @Override
-      public int hashCode() {
-        return Objects.hash(sum, count);
+      public Accum merge(Accum accum) {
+        count += accum.count;
+        sum += accum.sum;
+        return this;
       }
     }
 
@@ -79,29 +70,26 @@ public class Task {
     }
 
     @Override
-    public Accum addInput(Accum accumulator, Integer input) {
-      accumulator.sum += input;
-      accumulator.count++;
-
-      return accumulator;
+    public Accum addInput(Accum accum, Integer input) {
+      ++accum.count;
+      accum.sum += input;
+      return accum;
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accumulators) {
-      Accum merged = createAccumulator();
-
-      for (Accum accumulator : accumulators) {
-        merged.sum += accumulator.sum;
-        merged.count += accumulator.count;
-      }
-
-      return merged;
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      return StreamSupport.stream(accums.spliterator(), false)
+          .reduce(
+              createAccumulator(),
+              (Accum acc1, Accum acc2) -> acc2.merge(acc1)
+          );
     }
 
     @Override
-    public Double extractOutput(Accum accumulator) {
-      return ((double) accumulator.sum) / accumulator.count;
+    public Double extractOutput(Accum accum) {
+      return accum.sum/(new Double(accum.count));
     }
+
 
   }
 

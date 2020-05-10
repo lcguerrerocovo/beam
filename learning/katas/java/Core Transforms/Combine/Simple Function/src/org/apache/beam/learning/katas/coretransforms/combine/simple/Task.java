@@ -18,6 +18,7 @@
 
 package org.apache.beam.learning.katas.coretransforms.combine.simple;
 
+import java.util.stream.StreamSupport;
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -31,34 +32,27 @@ public class Task {
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipe = Pipeline.create(options);
 
-    PCollection<Integer> numbers = pipeline.apply(Create.of(10, 30, 50, 70, 90));
+    PCollection<Integer> numbers = pipe.apply(Create.of(10, 30, 50, 70, 90));
 
-    PCollection<Integer> output = applyTransform(numbers);
-
-    output.apply(Log.ofElements());
-
-    pipeline.run();
+    PCollection<Integer> out = applyTransform(numbers);
+    out.apply(Log.ofElements());
+    pipe.run();
   }
 
   static PCollection<Integer> applyTransform(PCollection<Integer> input) {
-    return input.apply(Combine.globally(new SumIntegerFn()));
+    return input.apply(Combine.globally(new SumValues()));
   }
 
-  static class SumIntegerFn implements SerializableFunction<Iterable<Integer>, Integer> {
+  public static class SumValues implements SerializableFunction<Iterable<Integer>,Integer> {
 
     @Override
-    public Integer apply(Iterable<Integer> input) {
-      int sum = 0;
-
-      for (int item : input) {
-        sum += item;
-      }
-
-      return sum;
+    public Integer apply(final Iterable<Integer> input) {
+      return StreamSupport
+          .stream(input.spliterator(), false)
+          .reduce(0, Integer::sum);
     }
-
   }
 
 }

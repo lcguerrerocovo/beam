@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 public class Task {
 
@@ -62,39 +63,35 @@ public class Task {
   static PCollection<String> applyTransform(
       PCollection<String> fruits, PCollection<String> countries) {
 
-    TupleTag<String> fruitsTag = new TupleTag<>();
-    TupleTag<String> countriesTag = new TupleTag<>();
+    MapElements<String, KV<String, String>> mapper = MapElements.into(kvs(strings(), strings()))
+        .via((String word) -> KV.of(word.substring(0, 1), word));
 
-    MapElements<String, KV<String, String>> mapToAlphabetKv =
-        MapElements.into(kvs(strings(), strings()))
-            .via(word -> KV.of(word.substring(0, 1), word));
+    PCollection<KV<String, String>> fruitskvs = fruits.apply("fruits mapper",mapper);
+    PCollection<KV<String, String>> countrykvs = countries.apply("countries mapper",mapper);
 
-    PCollection<KV<String, String>> fruitsPColl = fruits.apply("Fruit to KV", mapToAlphabetKv);
-    PCollection<KV<String, String>> countriesPColl = countries
-        .apply("Country to KV", mapToAlphabetKv);
+    final TupleTag<String> fruitsTag = new TupleTag<>();
+    final TupleTag<String> countriesTag = new TupleTag<>();
 
-    return KeyedPCollectionTuple
-        .of(fruitsTag, fruitsPColl)
-        .and(countriesTag, countriesPColl)
+    PCollection<KV<String, CoGbkResult>> coGroupedCollection =
+        KeyedPCollectionTuple
+            .of(fruitsTag, fruitskvs)
+            .and(countriesTag, countrykvs)
+            .apply(CoGroupByKey.create());
 
-        .apply(CoGroupByKey.create())
+    return coGroupedCollection.apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, String>() {
 
-        .apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, String>() {
+      @ProcessElement
+      public void processElement(@Element KV<String, CoGbkResult> in,
+                                 OutputReceiver<String> out) {
 
-          @ProcessElement
-          public void processElement(
-              @Element KV<String, CoGbkResult> element, OutputReceiver<String> out) {
+        String firstLetter = in.getKey();
+        String fruit = in.getValue().getOnly(fruitsTag);
+        String country = in.getValue().getOnly(countriesTag);
 
-            String alphabet = element.getKey();
-            CoGbkResult coGbkResult = element.getValue();
+        out.output(new WordsAlphabet(firstLetter, fruit, country).toString());
 
-            String fruit = coGbkResult.getOnly(fruitsTag);
-            String country = coGbkResult.getOnly(countriesTag);
-
-            out.output(new WordsAlphabet(alphabet, fruit, country).toString());
-          }
-
-        }));
+      }
+    }));
   }
 
 }

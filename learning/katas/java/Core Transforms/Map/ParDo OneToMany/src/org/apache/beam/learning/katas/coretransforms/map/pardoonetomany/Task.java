@@ -18,6 +18,7 @@
 
 package org.apache.beam.learning.katas.coretransforms.map.pardoonetomany;
 
+import java.util.List;
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,21 +27,18 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 
 public class Task {
 
   public static void main(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> sentences =
-        pipeline.apply(Create.of("Hello Beam", "It is awesome"));
-
-    PCollection<String> output = applyTransform(sentences);
-
-    output.apply(Log.ofElements());
-
-    pipeline.run();
+   PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+   Pipeline pipeline = Pipeline.create(options);
+   PCollection<String> input = pipeline.apply(Create.of("This is a sentence","sentence number "
+                                                                           + "2"));
+   PCollection<String> output = applyTransform(input);
+   output.apply(Log.ofElements());
+   pipeline.run();
   }
 
   static PCollection<String> applyTransform(PCollection<String> input) {
@@ -49,12 +47,10 @@ public class Task {
       @ProcessElement
       public void processElement(@Element String sentence, OutputReceiver<String> out) {
         String[] words = sentence.split(" ");
-
-        for (String word : words) {
+        for(String word: words) {
           out.output(word);
         }
       }
-
     }));
   }
 
